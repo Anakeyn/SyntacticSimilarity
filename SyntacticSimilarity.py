@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Aug  3 10:32:15 2021
+Created on Tue Aug  17 10:32:15 2021
 
 @author: Pierre
 """
@@ -19,7 +19,7 @@ from nltk.corpus import stopwords  #nltk (Natural Language ToolKit) normaly come
 stopWords = set(stopwords.words('french'))
 
 import re #for regular expressions
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer #for vectorization
 
 #needed for lemmatization
 #Install it before in Anaconda console :
@@ -35,6 +35,56 @@ def SpacyLemmatizer(doc):
     print(myLemmatizeDoc)             
     return myLemmatizeDoc          
     
+
+#################################################
+# Loading and Cleaning  Data
+#################################################
+#Read my company file  (french version)
+dfCompaniesFrenchDesc = pd.read_excel("CompaniesFrenchDesc.xlsx")
+dfCompaniesFrenchDesc.dtypes
+
+
+dfCompanies=pd.DataFrame(dfCompaniesFrenchDesc,columns=['Name', 'Description'])
+#dfCompanies.rename(columns={"Description": "Description"}, inplace=True)
+
+# removing special characters and stop words from the text
+stop_words_l=stopwords.words('french')
+#Keep numbers and accents but remove stop words
+dfCompanies['Description_Cleaned']=dfCompanies.Description.apply(lambda x: " ".join(re.sub(r'[^a-zA-Z0-9À-ÖØ-öø-ÿœ]',' ',w).lower() for w in x.split() if re.sub(r'[^a-zA-Z0-9À-ÖØ-öø-ÿœ]',' ',w).lower() not in stopWords) )
+#lemmatize
+dfCompanies['Description_Cleaned'] = dfCompanies.Description_Cleaned.apply(lambda x: SpacyLemmatizer(x) )
+
+#Check
+#dfCompanies.Description_Cleaned.shape
+
+
+
+
+
+################## instantiate the Count vectorizer object (for jaccard and Dice)
+countvectoriser = CountVectorizer()
+count_vectors = countvectoriser.fit_transform(dfCompanies.Description_Cleaned)
+#transform sparse matrix in array
+count_vectors_array = count_vectors.toarray()
+#Checks :
+#count_vectors_array.shape  #1321 documents / 62228 words
+#np.unique(count_vectors_array[0], return_counts=True) #What we get in the first document : 14 words found, 6214 not found
+
+
+
+############ instantiate the TFIDF vectorizer object
+tfidfvectoriser=TfidfVectorizer() 
+tfidfvectoriser.fit(dfCompanies.Description_Cleaned)  #Fit tfidfvectoriser
+#Calculate TFIDF sparse matrix
+tfidf_vectors=tfidfvectoriser.transform(dfCompanies.Description_Cleaned)
+
+#Checks (Norm calculation)
+#tfidf_vectors_array = tfidf_vectors.toarray()
+#np.linalg.norm(tfidf_vectors_array[0]) # = 1
+
+
+
+############ instantiate the BM25 vectorizer object
 ##########################  BM25 implementation by Koreyou
 #see here https://gist.github.com/koreyou/f3a8a0470d32aa56b32f198f49a9f2b8
 """ Implementation of OKapi BM25 with sklearn's TfidfVectorizer
@@ -77,80 +127,6 @@ class BM25(object):
         numer = X.multiply(np.broadcast_to(idf, X.shape)) * (k1 + 1)                                                          
         return (numer / denom).sum(1).A1
 
-
-
-#################################################
-# Clean Data
-#################################################
-#Read my company file  (french version)
-dfCompaniesFrenchDesc = pd.read_excel("CompaniesFrenchDesc.xlsx")
-dfCompaniesFrenchDesc.dtypes
-
-
-dfCompanies=pd.DataFrame(dfCompaniesFrenchDesc,columns=['Name', 'Description'])
-dfCompanies.rename(columns={"Description": "Description"}, inplace=True)
-
-# removing special characters and stop words from the text
-stop_words_l=stopwords.words('french')
-#Keep numbers and accents but remove stop words
-dfCompanies['Description_Cleaned']=dfCompanies.Description.apply(lambda x: " ".join(re.sub(r'[^a-zA-Z0-9À-ÖØ-öø-ÿœ]',' ',w).lower() for w in x.split() if re.sub(r'[^a-zA-Z0-9À-ÖØ-öø-ÿœ]',' ',w).lower() not in stopWords) )
-#lemmatize
-dfCompanies['Description_Cleaned'] = dfCompanies.Description_Cleaned.apply(lambda x: SpacyLemmatizer(x) )
-
-#Check
-#dfCompanies.Description_Cleaned.shape
-
-
-
-################################################
-# create dataframe for the Results : dfResults 
-################################################
-
-column_names = ["Index", 
-                "Name", 
-                "Description", 
-                "Description_Cleaned",
-                "Jaccard_Index", 
-                "Jaccard_Name", 
-                "Jaccard_Description", 
-                "Jaccard_Description_Cleaned",
-                "Jaccard_Score",
-                "Dice_Index", 
-                "Dice_Name", 
-                "Dice_Description", 
-                "Dice_Description_Cleaned",
-                "Dice_Score",
-                "TFIDF_Index", 
-                "TFIDF_Name", 
-                "TFIDF_Description", 
-                "TFIDF_Description_Cleaned",
-                "TFIDF_Score",
-                "BM25_Index", 
-                "BM25_Name", 
-                "BM25_Description", 
-                "BM25_Description_Cleaned",
-                "BM25_Score"]
-
-dfResults = pd.DataFrame(columns = column_names) #All Results
-
-
-
-
-################## instantiate the Count vectorizer object (for jaccard and Dice)
-countvectoriser = CountVectorizer()
-count_vectors = countvectoriser.fit_transform(dfCompanies.Description_Cleaned)
-#transform sparse matrix in array
-count_vectors_array = count_vectors.toarray()
- 
-
-############ instantiate the TFIDF vectorizer object
-tfidfvectoriser=TfidfVectorizer() 
-tfidfvectoriser.fit(dfCompanies.Description_Cleaned)  #Fit tfidfvectoriser
-#Calculate TFIDF sparse matrix
-tfidf_vectors=tfidfvectoriser.transform(dfCompanies.Description_Cleaned)
-
-
-############ instantiate the BM25 vectorizer object
 bm25vectoriser=BM25() 
 bm25vectoriser.fit(dfCompanies.Description_Cleaned)  #Fit bm25vectoriser
 #no need of a matrix to calculate BM25 Scores (scores provided in the class)
@@ -194,13 +170,39 @@ BM25_Scores0=bm25vectoriser.transform(dfCompanies.Description_Cleaned[0], dfComp
 
 
 
+################################################
+# create dataframe for the Results : dfResults 
+################################################
 
-#####################################################
-# Create comparison Dataframe dfResults
-#####################################################
+column_names = ["Index", 
+                "Name", 
+                "Description", 
+                "Description_Cleaned",
+                "Jaccard_Index", 
+                "Jaccard_Name", 
+                "Jaccard_Description", 
+                "Jaccard_Description_Cleaned",
+                "Jaccard_Score",
+                "Dice_Index", 
+                "Dice_Name", 
+                "Dice_Description", 
+                "Dice_Description_Cleaned",
+                "Dice_Score",
+                "TFIDF_Index", 
+                "TFIDF_Name", 
+                "TFIDF_Description", 
+                "TFIDF_Description_Cleaned",
+                "TFIDF_Score",
+                "BM25_Index", 
+                "BM25_Name", 
+                "BM25_Description", 
+                "BM25_Description_Cleaned",
+                "BM25_Score"]
 
-MaxSize = dfCompanies.shape[0] #1330
-MaxSize = 200 #if it's too long or to test different values.
+dfResults = pd.DataFrame(columns = column_names) #All Results
+
+MaxSize = dfCompanies.shape[0] #1329
+#MaxSize = 100 #if it's too long or to test different values.
 
 for i in range(0,MaxSize):
     print("i:",i)      
@@ -322,19 +324,20 @@ for i in range(0,MaxSize):
 #####################################################################
 # Save Results in Excel
 #####################################################################
-    
+
+#All Results    
 dfResults.shape
 dfResults.to_excel("SyntaxResults"+str(MaxSize)+".xlsx", sheet_name='SyntaxFResults', index=False)   
 
 
 #All Similar results
 dfJDTBResults = dfResults.loc[(dfResults['Jaccard_Index']  == dfResults['Dice_Index']) &
-                              (dfResults['Jaccard_Index']== dfResults['TFIDF_Index']) & 
+                              (dfResults['Jaccard_Index'] == dfResults['TFIDF_Index']) & 
                               (dfResults['Jaccard_Index'] ==  dfResults['BM25_Index']) ]
 dfJDTBResults.shape
 dfJDTBResults.to_excel("JDTBResults"+str(MaxSize)+".xlsx", sheet_name='JDTBResults', index=False)  
 
-
+########  Jaccard vs Dice
 #Jaccard Dice  Same  results
 dfJDResults = dfResults.loc[(dfResults['Jaccard_Index']  == dfResults['Dice_Index'])]
 dfJDResults.drop(columns=["TFIDF_Index", "TFIDF_Name", "TFIDF_Description", "TFIDF_Description_Cleaned", "TFIDF_Score",
@@ -349,6 +352,38 @@ dfNotJDResults.drop(columns=["TFIDF_Index", "TFIDF_Name", "TFIDF_Description", "
 dfNotJDResults.shape
 dfNotJDResults.to_excel("NotJDResults"+str(MaxSize)+".xlsx", sheet_name='NotJDResults', index=False) 
 
+########  Jaccard vs TFIDF
+#Jaccard TFIDF  Same  results
+dfJTResults = dfResults.loc[(dfResults['Jaccard_Index']  == dfResults['TFIDF_Index'])]
+dfJTResults.drop(columns=["Dice_Index", "Dice_Name", "Dice_Description", "Dice_Description_Cleaned", "Dice_Score",
+                "BM25_Index", "BM25_Name", "BM25_Description", "BM25_Description_Cleaned", "BM25_Score"], inplace=True)
+dfJTResults.shape
+dfJTResults.to_excel("JTResults"+str(MaxSize)+".xlsx", sheet_name='JTResults', index=False) 
+
+#Jaccard TFIDF  Different  results
+dfNotJTResults = dfResults.loc[(dfResults['Jaccard_Index']  != dfResults['TFIDF_Index'])]
+dfNotJTResults.drop(columns=["Dice_Index", "Dice_Name", "Dice_Description", "Dice_Description_Cleaned", "Dice_Score",
+                "BM25_Index", "BM25_Name", "BM25_Description", "BM25_Description_Cleaned", "BM25_Score"], inplace=True)
+dfNotJTResults.shape
+dfNotJTResults.to_excel("NotJTResults"+str(MaxSize)+".xlsx", sheet_name='NotJTResults', index=False) 
+
+########  Jaccard vs BM25
+#Jaccard BM25  Same  results
+dfJBResults = dfResults.loc[(dfResults['Jaccard_Index']  == dfResults['BM25_Index'])]
+dfJBResults.drop(columns=["Dice_Index", "Dice_Name", "Dice_Description", "Dice_Description_Cleaned", "Dice_Score",
+                "TFIDF_Index", "TFIDF_Name", "TFIDF_Description", "TFIDF_Description_Cleaned", "TFIDF_Score"], inplace=True)
+dfJBResults.shape
+dfJBResults.to_excel("JBResults"+str(MaxSize)+".xlsx", sheet_name='JBResults', index=False) 
+
+#Jaccard BM25  Different  results
+dfNotJBResults = dfResults.loc[(dfResults['Jaccard_Index']  != dfResults['BM25_Index'])]
+dfNotJBResults.drop(columns=["Dice_Index", "Dice_Name", "Dice_Description", "Dice_Description_Cleaned", "Dice_Score",
+                "TFIDF_Index", "TFIDF_Name", "TFIDF_Description", "TFIDF_Description_Cleaned", "TFIDF_Score"], inplace=True)
+dfNotJBResults.shape
+dfNotJBResults.to_excel("NotJBResults"+str(MaxSize)+".xlsx", sheet_name='NotJBResults', index=False) 
+
+
+########  TFIDF vs BM25
 #TFIDF BM25  Same results
 dfTBResults = dfResults.loc[(dfResults['TFIDF_Index']  == dfResults['BM25_Index'])]
 dfTBResults.drop(columns=["Jaccard_Index", "Jaccard_Name", "Jaccard_Description", "Jaccard_Description_Cleaned", "Jaccard_Score",
