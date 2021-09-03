@@ -72,10 +72,10 @@ count_vectors_array = count_vectors.toarray()
 
 
 
-############ instantiate the TFIDF vectorizer object
+############ instantiate the TF-IDF vectorizer object
 tfidfvectoriser=TfidfVectorizer() 
 tfidfvectoriser.fit(dfCompanies.Description_Cleaned)  #Fit tfidfvectoriser
-#Calculate TFIDF sparse matrix
+#Calculate TF-IDF sparse matrix
 tfidf_vectors=tfidfvectoriser.transform(dfCompanies.Description_Cleaned)
 
 #Checks (Norm calculation)
@@ -156,8 +156,8 @@ def Dice_Scores(myArray, i) :
     return DiceScores     
 
 
-#For TFIDF (cosine similarity)
-#all similarity scores for TFIDF are calculated using the dot product of array and array.T
+#For TF-IDF (cosine similarity)
+#all similarity scores for TF-IDF are calculated using the dot product of array and array.T
 #np.dot Dot product of Two arrays : dot(a, b)[i,j,k,m] = sum(a[i,j,:] * b[k,:,m])
 TFIDF_Scores=np.dot(tfidf_vectors,tfidf_vectors.T).toarray()
 #TFIDF_Scores.shape
@@ -245,8 +245,8 @@ for i in range(0,MaxSize):
     
     
     ####################################################
-    ######  For TFIDF
-    #Create Current dataframe containing similarities from  TFIDF_Scores to i       
+    ######  For TF-IDF
+    #Create Current dataframe containing similarities from  TFIDF_Scores for row i          
     dfCurrent_TFIDF_Scores=pd.DataFrame(TFIDF_Scores[i][:], columns=['TFIDF_Score'])
     #index in column
     dfCurrent_TFIDF_Scores['TFIDF_Index']=dfCurrent_TFIDF_Scores.index
@@ -263,7 +263,7 @@ for i in range(0,MaxSize):
 
     ####################################################
     ######  For OKAPI BM25
-    #Create Current dataframe containing similarities from  TFIDF_Scores to i       
+    #Create Current dataframe containing similarities from  bm25 scores for row i          
     dfCurrent_BM25_Scores=pd.DataFrame(bm25vectoriser.transform(dfCompanies.Description_Cleaned[i], dfCompanies.Description_Cleaned), columns=['BM25_Score'])
     #index in column
     dfCurrent_BM25_Scores['BM25_Index']=dfCurrent_BM25_Scores.index
