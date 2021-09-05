@@ -201,7 +201,7 @@ column_names = ["Index",
 
 dfResults = pd.DataFrame(columns = column_names) #All Results
 
-MaxSize = dfCompanies.shape[0] #
+MaxSize = dfCompanies.shape[0]-1 #
 #MaxSize = 100 #if it's too long or to test different values.
 
 for i in range(0,MaxSize):
