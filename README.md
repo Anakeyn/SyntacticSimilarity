@@ -9,6 +9,6 @@ conda install -c conda-forge spacy
 
 python -m spacy download fr_core_news_md
 
-We also use BM25 implementation by Koreyou https://gist.github.com/koreyou/f3a8a0470d32aa56b32f198f49a9f2b8
+We also used BM25 implementation by Koreyou https://gist.github.com/koreyou/f3a8a0470d32aa56b32f198f49a9f2b8
 
 
